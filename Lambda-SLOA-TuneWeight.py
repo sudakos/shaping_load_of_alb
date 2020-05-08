@@ -7,22 +7,19 @@ from datetime import datetime
 from datetime import timedelta
 
 region_name = boto3.session.Session().region_name
-#ssm = boto3.client('ssm', region_name=region_name)
+ssm = boto3.client('ssm', region_name=region_name)
 clientELB = boto3.client('elbv2')
 clientCloudWatch = boto3.client('cloudwatch')
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
 
-listenerArn='arn:aws:elasticloadbalancing:us-east-1:404506830242:listener/app/ALB-SLOA-LimitingLoad/feeba4c459681324/cf6499dadc8053d3'
-mainTargetGroupArn='arn:aws:elasticloadbalancing:us-east-1:404506830242:targetgroup/TG-SLOA-ToServersToProtect/cd57a363e3d95583'
-nullTargetGroupArn='"arn:aws:elasticloadbalancing:us-east-1:404506830242:targetgroup/TG-SLOA-NoInstances/4a5ada26de8936f5"'
-valueOfDimentions='app/ALBforArtifactToRateLimit/a6ef3e91e8ada08e'
-
-threthold=50
-
+# main lambda function
 def lambda_handler(event, context):
     
+    threthold=int( get_param('/SLOA/threthold') )
     newConnections=getValue_NewConnections()
+
+    print("## #NewConnections : ",newConnections)
 
     if(threthold>=newConnections):
         print("## clear rate()")
@@ -35,14 +32,17 @@ def lambda_handler(event, context):
     print(response)
     return response
 
+# return the value about the number of new connections
 def getValue_NewConnections():   
     try:
+        valueOfDimentions=get_param('/SLOA/valueOfDimentions')
+
         current_time = datetime.utcnow()
         start_time = current_time - timedelta(minutes=5)
         end_time = current_time
         period = 60
     
-        response=response = clientCloudWatch.get_metric_data(
+        response= clientCloudWatch.get_metric_data(
             MetricDataQueries=[
                 {
                     'Id': 'id1',
@@ -69,6 +69,7 @@ def getValue_NewConnections():
     
     
         values=response['MetricDataResults'][0]['Values']
+        print("## values[] : ", values)
 
         if not values:
             maxValues=0
@@ -83,10 +84,14 @@ def getValue_NewConnections():
         raise e
 
 
-
+# change the weight of forwarding to main target group to 100%
 def clearRate():
 
     try:
+        listenerArn=get_param('/SLOA/listenerArn')
+        mainTargetGroupArn=get_param('/SLOA/mainTargetGroupArn')
+        nullTargetGroupArn=get_param('/SLOA/nullTargetGroupArn')
+
         response = clientELB.modify_listener(
             ListenerArn=listenerArn,
             DefaultActions=[
@@ -115,10 +120,14 @@ def clearRate():
         raise e
 
 
-
+# change the weight of forwarding to main target group to "rateToMain"
 def changeRate(rateToMain):
 
     try:
+        listenerArn=get_param('/SLOA/listenerArn')
+        mainTargetGroupArn=get_param('/SLOA/mainTargetGroupArn')
+        nullTargetGroupArn=get_param('/SLOA/nullTargetGroupArn')
+
         rateToSub=100-rateToMain
 
         response = clientELB.modify_listener(
@@ -150,6 +159,16 @@ def changeRate(rateToMain):
         logger.error(e)
         raise e
 
+# return the value associated by key from ParameterStore
+def get_param(key: str) -> str:
+    global ssm
+    try:
+        return ssm.get_parameter(Name=key)['Parameter']['Value']
+    except Exception as e:
+        logger.error('fail to get_param(key: str) ')
+        logger.error(e)
+        raise e
+     
 event={}
 context=""
 
