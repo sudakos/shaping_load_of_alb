@@ -57,8 +57,6 @@ aws iam attach-role-policy --role-name "RoleSLOAforLambda" --policy-arn "arn:aws
 aws iam attach-role-policy --role-name "RoleSLOAforLambda" --policy-arn "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
 ```
 
-Make a note the ARN of the lambda function
-
 ### 4. Build the lambda function : Lambda-SLOA-TuneWeight
 
 ```shell
@@ -68,6 +66,8 @@ aws lambda create-function --function-name "Lambda-SLOA-TuneWeight" \
       --handler Lambda-SLOA-TuneWeight.lambda_handler \
       --timeout 60 --zip-file fileb://temp.zip
 ```
+
+Make a note the ARN of the lambda function
 
 ### 5. Set CloudWatch Event to run the lambda function every 1 miutes
 
