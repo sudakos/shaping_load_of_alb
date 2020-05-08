@@ -57,6 +57,8 @@ aws iam attach-role-policy --role-name "RoleSLOAforLambda" --policy-arn "arn:aws
 aws iam attach-role-policy --role-name "RoleSLOAforLambda" --policy-arn "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
 ```
 
+Make a note the ARN of the lambda function
+
 ### 4. Build the lambda function : Lambda-SLOA-TuneWeight
 
 ```shell
